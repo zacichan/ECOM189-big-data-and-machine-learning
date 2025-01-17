@@ -6,9 +6,8 @@ import re
 from dotenv import load_dotenv
 import os
 
-
+# Load environment variables
 load_dotenv()
-
 
 class PMQScraper:
     def __init__(self, api_key: str):
@@ -30,6 +29,8 @@ class PMQScraper:
             "search": "Prime Minister Engagements",
             "num": 100,  # Maximum results per page
             "order": "d",  # Sort by date descending
+            # "start_date": start_date.strftime("%Y-%m-%d"),  # Add start date
+            # "end_date": end_date.strftime("%Y-%m-%d"),  # Add end date
         }
 
         try:
