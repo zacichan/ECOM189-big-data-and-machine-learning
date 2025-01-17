@@ -6,8 +6,8 @@ import re
 from dotenv import load_dotenv
 import os
 import html
+import time
 
-# Load environment variables
 load_dotenv()
 
 
@@ -18,89 +18,119 @@ class PMQScraper:
 
     def fetch_pmq_debates(self, months: int = 2) -> List[Dict]:
         """
-        Fetch PMQ debates for the specified number of months
+        Fetch PMQ debates for the specified number of months, handling pagination
         """
-        # Calculate date range
         end_date = datetime.now()
         start_date = end_date - timedelta(days=30 * months)
 
-        # Parameters for the API request
-        params = {
-            "key": self.api_key,
-            "type": "commons",
-            "search": "Prime Minister Engagements",
-            "num": 100,  # Maximum results per page
-            "order": "d",  # Sort by date descending
-            "start_date": start_date.strftime("%Y-%m-%d"),  # Add start date
-            "end_date": end_date.strftime("%Y-%m-%d"),  # Add end date
+        all_debates = []
+        page = 1
+        while True:
+            params = {
+                "key": self.api_key,
+                "type": "commons",
+                "search": "Prime Minister Engagements",
+                "num": 100,
+                "page": page,
+                "order": "d",
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+            }
+
+            try:
+                response = requests.get(self.base_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if not data.get("rows"):  # No more results
+                    break
+
+                all_debates.extend(data["rows"])
+                print(f"Fetched page {page}, got {len(data['rows'])} debates")
+
+                page += 1
+                time.sleep(1)  # Rate limiting
+
+            except requests.exceptions.RequestException as e:
+                print(f"Error fetching data on page {page}: {e}")
+                break
+
+        return all_debates
+
+    def extract_debate_components(self, debate: Dict) -> List[Dict]:
+        """
+        Extract individual contributions from a debate
+        """
+        debate_components = []
+
+        # Basic metadata for this debate
+        base_metadata = {
+            "date": debate.get("hdate"),
+            "time": debate.get("htime"),
+            "gid": debate.get("gid"),
+            "parent_gid": debate.get("parent_gid"),
+            "debate_url": f"https://www.theyworkforyou.com/debates/?id={debate.get('gid')}",
         }
 
-        try:
-            response = requests.get(self.base_url, params=params)
-            response.raise_for_status()
-            return response.json()["rows"]
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching data: {e}")
-            return []
+        # Get the main body text and clean it
+        body = debate.get("body", "")
+        clean_text = html.unescape(re.sub("<[^<]+?>", "", body))
 
-    def extract_question_answer(self, debate_text: str) -> Dict[str, str]:
-        """
-        Extract question and answer from debate text
-        """
-        # Remove HTML tags
-        clean_text = re.sub("<[^<]+?>", "", debate_text)
+        # Extract speaker information
+        speaker_info = {
+            "speaker_name": debate.get("speaker", {}).get("name"),
+            "speaker_party": debate.get("speaker", {}).get("party"),
+            "speaker_constituency": debate.get("speaker", {}).get("constituency"),
+            "speaker_id": debate.get("speaker", {}).get("member_id"),
+        }
 
-        # Decode HTML entities
-        decoded_text = html.unescape(clean_text)
+        # Create entry for this contribution
+        contribution = {
+            **base_metadata,
+            **speaker_info,
+            "text": clean_text.strip(),
+            "is_question": "Q" in (debate.get("subsection", "") or ""),
+            "sequence_number": debate.get("sequence_number"),
+        }
 
-        # Split into paragraphs
-        paragraphs = decoded_text.split("\n")
+        debate_components.append(contribution)
 
-        # Combine paragraphs into single text
-        return {"full_text": " ".join(paragraphs).strip()}
+        return debate_components
 
     def create_dataframe(self, debates: List[Dict]) -> pd.DataFrame:
         """
-        Convert debates data into a pandas DataFrame
+        Convert debates data into a pandas DataFrame, with separate rows for each contribution
         """
-        processed_debates = []
+        all_contributions = []
 
         for debate in debates:
-            # Extract relevant information
-            debate_data = {
-                "date": debate.get("hdate"),
-                "time": debate.get("htime"),
-                "speaker_name": debate.get("speaker", {}).get("name"),
-                "speaker_party": debate.get("speaker", {}).get("party"),
-                "speaker_constituency": debate.get("speaker", {}).get("constituency"),
-                "gid": debate.get("gid"),
-            }
-
-            # Extract question/answer content
-            content = self.extract_question_answer(debate.get("body", ""))
-            debate_data.update(content)
-
-            processed_debates.append(debate_data)
+            contributions = self.extract_debate_components(debate)
+            all_contributions.extend(contributions)
 
         # Create DataFrame
-        df = pd.DataFrame(processed_debates)
+        df = pd.DataFrame(all_contributions)
 
         # Convert date column to datetime
         df["date"] = pd.to_datetime(df["date"])
 
-        # Sort by date and time
-        df = df.sort_values(["date", "time"], ascending=[False, True])
+        # Sort by date, time, and sequence number
+        df = df.sort_values(
+            ["date", "time", "sequence_number"], ascending=[False, True, True]
+        )
+
+        # Add question-answer grouping
+        df["qa_group"] = (df["is_question"].astype(int).diff() != 0).cumsum()
 
         return df
 
 
 def main():
-    # Initialise scraper
+    # Initialize scraper
     scraper = PMQScraper(os.getenv("THEY_WORK_FOR_YOU_API_KEY"))
 
-    # Fetch debates
+    # Fetch debates with longer time period
     print("Fetching PMQ debates...")
-    debates = scraper.fetch_pmq_debates(months=2)
+    debates = scraper.fetch_pmq_debates(months=1)
 
     # Create DataFrame
     print("Processing debates into DataFrame...")
@@ -112,6 +142,11 @@ def main():
 
     print("\nSample of the data:")
     print(df.head())
+
+    # Print some useful summaries
+    print("\nNumber of unique debates:", df["gid"].nunique())
+    print("Date range:", df["date"].min(), "to", df["date"].max())
+    print("Number of contributions:", len(df))
 
     # Save to CSV
     output_file = "data/pmq_debates.csv"
