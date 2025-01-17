@@ -5,9 +5,11 @@ from typing import Dict, List
 import re
 from dotenv import load_dotenv
 import os
+import html
 
 # Load environment variables
 load_dotenv()
+
 
 class PMQScraper:
     def __init__(self, api_key: str):
@@ -29,8 +31,8 @@ class PMQScraper:
             "search": "Prime Minister Engagements",
             "num": 100,  # Maximum results per page
             "order": "d",  # Sort by date descending
-            # "start_date": start_date.strftime("%Y-%m-%d"),  # Add start date
-            # "end_date": end_date.strftime("%Y-%m-%d"),  # Add end date
+            "start_date": start_date.strftime("%Y-%m-%d"),  # Add start date
+            "end_date": end_date.strftime("%Y-%m-%d"),  # Add end date
         }
 
         try:
@@ -48,8 +50,11 @@ class PMQScraper:
         # Remove HTML tags
         clean_text = re.sub("<[^<]+?>", "", debate_text)
 
+        # Decode HTML entities
+        decoded_text = html.unescape(clean_text)
+
         # Split into paragraphs
-        paragraphs = clean_text.split("\n")
+        paragraphs = decoded_text.split("\n")
 
         # Combine paragraphs into single text
         return {"full_text": " ".join(paragraphs).strip()}
@@ -90,7 +95,7 @@ class PMQScraper:
 
 
 def main():
-    # Initialize scraper
+    # Initialise scraper
     scraper = PMQScraper(os.getenv("THEY_WORK_FOR_YOU_API_KEY"))
 
     # Fetch debates
@@ -109,7 +114,7 @@ def main():
     print(df.head())
 
     # Save to CSV
-    output_file = "pmq_debates.csv"
+    output_file = "data/pmq_debates.csv"
     df.to_csv(output_file, index=False)
     print(f"\nData saved to {output_file}")
 

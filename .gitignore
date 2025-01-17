@@ -1,3 +1,9 @@
+# STUFF SPECIFIC TO MY PROJECT
+data/
+
+
+# GITHUB BOILERPLATE
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -169,3 +175,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
