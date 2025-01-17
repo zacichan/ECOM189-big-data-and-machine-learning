@@ -3,6 +3,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List
 import re
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
 
 
 class PMQScraper:
@@ -84,11 +89,8 @@ class PMQScraper:
 
 
 def main():
-    # Replace with your API key
-    API_KEY = "EdLxmFALVZpPDnzHMkFjYacc"
-
     # Initialize scraper
-    scraper = PMQScraper(API_KEY)
+    scraper = PMQScraper(os.getenv("THEY_WORK_FOR_YOU_API_KEY"))
 
     # Fetch debates
     print("Fetching PMQ debates...")
