@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from tqdm import tqdm
 
+# Scrapes from https://www.theyworkforyou.com/pwdata/scrapedxml/debates/
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
