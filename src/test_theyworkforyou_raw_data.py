@@ -164,8 +164,8 @@ def generate_urls(start_date: datetime, end_date: datetime) -> List[str]:
     current_date = start_date
 
     while current_date <= end_date:
-        # Skip weekends
-        if current_date.weekday() >= 5:  # 5 is Saturday, 6 is Sunday
+        # Only scrape Wednesdays
+        if current_date.weekday() != 2:  # 2 is Wednesday
             current_date += timedelta(days=1)
             continue
 
