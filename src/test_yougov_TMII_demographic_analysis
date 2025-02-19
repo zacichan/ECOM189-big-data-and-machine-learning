@@ -1,0 +1,113 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from test_yougov_TMII_raw_data import dataframes  # Import pre-loaded data
+
+# Define mapping for demographic categories
+demographic_mapping = {
+    "Gender": ["Male", "Female"],
+    "Age": ["18-24", "25-49", "50-64", "65+"],
+    "Political View": ["Conservative", "Labour", "Liberal_Democrat"],
+    "Region": ["London", "Rest_of_South", "Midlands", "North", "Scotland", "Wales"],
+    "Social Grade": ["AB,_C1", "C2,_D,_E"]
+}
+
+def plot_demographic_trends(demographic):
+    if demographic not in demographic_mapping:
+        print(f"Demographic '{demographic}' not recognized.")
+        return
+    
+    fig, axes = plt.subplots(len(demographic_mapping[demographic]), 5, figsize=(18, len(demographic_mapping[demographic]) * 4))
+    
+    # Filter for top issues
+    top_issues = ["The economy", "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"]
+    
+    # Define color palette
+    palette = sns.color_palette("tab10", len(top_issues))
+    color_mapping = dict(zip(top_issues, palette))
+    
+    for row, subgroup in enumerate(demographic_mapping[demographic]):
+        demographic_tab = f"yougov_TMII_{subgroup}"
+        df_to_plot = dataframes.get(demographic_tab, None)
+        
+        if df_to_plot is None:
+            print(f"No data available for {subgroup}.")
+            continue
+        
+        df_filtered = df_to_plot[df_to_plot["Issue"].isin(top_issues)]
+        
+        for col, issue in enumerate(top_issues):
+            issue_df = df_filtered[df_filtered["Issue"] == issue].copy()
+            issue_df["Rolling_Avg"] = issue_df["Percentage"].rolling(window=5, min_periods=1).mean()
+            
+            sns.lineplot(data=issue_df, x="Date", y="Percentage", ax=axes[row, col], linewidth=2, color=color_mapping[issue])
+            sns.scatterplot(data=issue_df, x="Date", y="Percentage", ax=axes[row, col], color=color_mapping[issue], alpha=0.6)
+            
+            axes[row, col].set_title(f"{issue} ({subgroup})", fontsize=10)
+            axes[row, col].set_xlabel("Date")
+            axes[row, col].set_ylabel("Percentage")
+            axes[row, col].tick_params(axis="x", rotation=45)
+            axes[row, col].grid(True, linestyle="--", alpha=0.6)
+    
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()
+
+# Plot comparisons on grid 
+# plot_demographic_trends("Region")
+
+# Load 'All Adults' data for comparison
+default_tab = "All_adults"
+df_all_adults = dataframes.get(f"yougov_TMII_{default_tab}", None)
+
+if df_all_adults is None:
+    raise ValueError("No data available for All Adults.")
+
+def plot_demographic_differences(demographic):
+    if demographic not in demographic_mapping:
+        print(f"Demographic '{demographic}' not recognized.")
+        return
+    
+    fig, axes = plt.subplots(len(demographic_mapping[demographic]), 5, figsize=(18, len(demographic_mapping[demographic]) * 4))
+    
+    # Filter for top issues
+    top_issues = ["The economy", "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"]
+    
+    # Define color palette
+    palette = sns.color_palette("tab10", len(top_issues))
+    color_mapping = dict(zip(top_issues, palette))
+    
+    for row, subgroup in enumerate(demographic_mapping[demographic]):
+        demographic_tab = f"yougov_TMII_{subgroup}"
+        df_to_plot = dataframes.get(demographic_tab, None)
+        
+        if df_to_plot is None:
+            print(f"No data available for {subgroup}.")
+            continue
+        
+        df_filtered = df_to_plot[df_to_plot["Issue"].isin(top_issues)]
+        df_all_filtered = df_all_adults[df_all_adults["Issue"].isin(top_issues)]
+        
+        for col, issue in enumerate(top_issues):
+            issue_df = df_filtered[df_filtered["Issue"] == issue].copy()
+            issue_all_df = df_all_filtered[df_all_filtered["Issue"] == issue].copy()
+            
+            issue_df["Difference"] = issue_df["Percentage"].values - issue_all_df["Percentage"].values
+            
+            sns.lineplot(data=issue_df, x="Date", y="Difference", ax=axes[row, col], linewidth=2, color=color_mapping[issue])
+            sns.scatterplot(data=issue_df, x="Date", y="Difference", ax=axes[row, col], color=color_mapping[issue], alpha=0.6)
+            
+            axes[row, col].set_title(f"{issue} Difference ({subgroup} - All Adults)", fontsize=10)
+            axes[row, col].set_xlabel("Date")
+            axes[row, col].set_ylabel("Percentage Difference")
+            axes[row, col].axhline(0, linestyle="--", color="black", linewidth=1)
+            axes[row, col].tick_params(axis="x", rotation=45)
+            axes[row, col].grid(True, linestyle="--", alpha=0.6)
+    
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()
+
+# Example: Compare differences for Gender
+plot_demographic_differences("Age")

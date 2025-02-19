@@ -1,0 +1,26 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from test_yougov_TMII_raw_data import dataframes  # Import pre-loaded data
+
+# Select the default sheet to use
+default_tab = "All_adults"
+df_to_plot = dataframes.get(f"yougov_TMII_{default_tab}", None)
+
+# Create a correlation matrix with a configurable number of top issues
+num_top_issues = 10  # Change this value to adjust the number of top issues considered
+
+corr_df = df_to_plot.pivot(index="Date", columns="Issue", values="Percentage").fillna(0)
+# Remove unwanted issues from the correlation matrix
+corr_df = corr_df.drop(columns=["Don't know", "None of These", "Afghanistan"], errors='ignore')
+
+# Select the top N issues based on their average percentage over time
+top_n_issues = corr_df.mean().nlargest(num_top_issues).index
+corr_matrix = corr_df[top_n_issues].corr()
+
+# Plot the correlation matrix
+plt.figure(figsize=(10, 6))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
+plt.title(f"Correlation Matrix of Top {num_top_issues} Issues")
+plt.show()
