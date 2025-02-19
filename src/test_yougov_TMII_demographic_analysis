@@ -13,50 +13,6 @@ demographic_mapping = {
     "Social Grade": ["AB,_C1", "C2,_D,_E"]
 }
 
-def plot_demographic_trends(demographic):
-    if demographic not in demographic_mapping:
-        print(f"Demographic '{demographic}' not recognized.")
-        return
-    
-    fig, axes = plt.subplots(len(demographic_mapping[demographic]), 5, figsize=(18, len(demographic_mapping[demographic]) * 4))
-    
-    # Filter for top issues
-    top_issues = ["The economy", "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"]
-    
-    # Define color palette
-    palette = sns.color_palette("tab10", len(top_issues))
-    color_mapping = dict(zip(top_issues, palette))
-    
-    for row, subgroup in enumerate(demographic_mapping[demographic]):
-        demographic_tab = f"yougov_TMII_{subgroup}"
-        df_to_plot = dataframes.get(demographic_tab, None)
-        
-        if df_to_plot is None:
-            print(f"No data available for {subgroup}.")
-            continue
-        
-        df_filtered = df_to_plot[df_to_plot["Issue"].isin(top_issues)]
-        
-        for col, issue in enumerate(top_issues):
-            issue_df = df_filtered[df_filtered["Issue"] == issue].copy()
-            issue_df["Rolling_Avg"] = issue_df["Percentage"].rolling(window=5, min_periods=1).mean()
-            
-            sns.lineplot(data=issue_df, x="Date", y="Percentage", ax=axes[row, col], linewidth=2, color=color_mapping[issue])
-            sns.scatterplot(data=issue_df, x="Date", y="Percentage", ax=axes[row, col], color=color_mapping[issue], alpha=0.6)
-            
-            axes[row, col].set_title(f"{issue} ({subgroup})", fontsize=10)
-            axes[row, col].set_xlabel("Date")
-            axes[row, col].set_ylabel("Percentage")
-            axes[row, col].tick_params(axis="x", rotation=45)
-            axes[row, col].grid(True, linestyle="--", alpha=0.6)
-    
-    # Adjust layout
-    plt.tight_layout()
-    plt.show()
-
-# Plot comparisons on grid 
-# plot_demographic_trends("Region")
-
 # Load 'All Adults' data for comparison
 default_tab = "All_adults"
 df_all_adults = dataframes.get(f"yougov_TMII_{default_tab}", None)
@@ -109,5 +65,59 @@ def plot_demographic_differences(demographic):
     plt.tight_layout()
     plt.show()
 
-# Example: Compare differences for Gender
-plot_demographic_differences("Age")
+top_issues = ["The economy", "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"]
+
+def find_biggest_gaps():
+    gap_data = []
+    
+    for demographic, subgroups in demographic_mapping.items():
+        for subgroup in subgroups:
+            demographic_tab = f"yougov_TMII_{subgroup}"
+            df_to_plot = dataframes.get(demographic_tab, None)
+            
+            if df_to_plot is None:
+                continue
+            
+            df_filtered = df_to_plot[df_to_plot["Issue"].isin(top_issues)]
+            df_all_filtered = df_all_adults[df_all_adults["Issue"].isin(top_issues)]
+            
+            for issue in top_issues:
+                issue_df = df_filtered[df_filtered["Issue"] == issue].copy()
+                issue_all_df = df_all_filtered[df_all_filtered["Issue"] == issue].copy()
+                
+                issue_df["Difference"] = issue_df["Percentage"].values - issue_all_df["Percentage"].values
+                if not issue_df.empty and not issue_df['Difference'].isna().all():
+                    max_gap = issue_df.loc[issue_df['Difference'].abs().idxmax(), 'Difference']
+                else:
+                    max_gap = None
+                
+                if max_gap is not None:
+                    gap_data.append({
+                        "Demographic": demographic,
+                        "Subgroup": subgroup,
+                        "Issue": issue,
+                        "Max Difference (%)": max_gap
+                    })
+    
+    gap_df = pd.DataFrame(gap_data)
+    gap_df_pos = gap_df[gap_df['Max Difference (%)'] > 0].nlargest(5, 'Max Difference (%)')
+    gap_df_neg = gap_df[gap_df['Max Difference (%)'] < 0].nsmallest(5, 'Max Difference (%)')
+    gap_df = pd.concat([gap_df_pos, gap_df_neg])
+    
+    plt.figure(figsize=(12, 6))
+    sns.barplot(data=gap_df, x="Max Difference (%)", y="Issue", hue="Subgroup", dodge=True, palette="coolwarm")
+    plt.xlabel("Max Percentage Point Difference")
+    plt.ylabel("Issue")
+    plt.title("Top 10 Biggest Public Opinion Gaps Across Demographics")
+    plt.legend(title="Subgroup", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.show()
+    
+    return gap_df
+
+# Plot charts to show differences in different demographics 
+# (Gender, Age, Poltical View, Region, Social Grade)
+# plot_demographic_differences("Gender")
+
+# Find and display the biggest gaps
+#gap_results = find_biggest_gaps()
+print(gap_results.head(10))
