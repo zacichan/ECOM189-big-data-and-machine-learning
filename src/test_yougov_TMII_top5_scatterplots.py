@@ -37,8 +37,11 @@ for i, issue in enumerate(top_issues):
 # Convert data into wide format for stacked area chart
 pivot_df = df_filtered.pivot(index="Date", columns="Issue", values="Percentage").fillna(0)
 
+# Normalize the data to get percentages
+pivot_df_percentage = pivot_df.div(pivot_df.sum(axis=1), axis=0) * 100
+
 # Plot all issues together as a stacked area chart
-axes[5].stackplot(pivot_df.index, pivot_df.T, labels=pivot_df.columns, colors=[color_mapping[issue] for issue in pivot_df.columns], alpha=0.7)
+axes[5].stackplot(pivot_df_percentage.index, pivot_df_percentage.T, labels=pivot_df_percentage.columns, colors=[color_mapping[issue] for issue in pivot_df_percentage.columns], alpha=0.7)
 axes[5].set_title("All Key Issues Together (Stacked Area Chart)", fontsize=12)
 axes[5].set_xlabel("Date")
 axes[5].set_ylabel("Percentage")

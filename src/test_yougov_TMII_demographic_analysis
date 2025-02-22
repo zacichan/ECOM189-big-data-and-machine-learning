@@ -65,7 +65,9 @@ def plot_demographic_differences(demographic):
     plt.tight_layout()
     plt.show()
 
-top_issues = ["The economy", "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"]
+top_issues = ["The economy"
+              #, "The environment", "Health", "Immigration & Asylum", "Britain leaving the EU"
+              ]
 
 def find_biggest_gaps():
     gap_data = []
@@ -100,16 +102,19 @@ def find_biggest_gaps():
                     })
     
     gap_df = pd.DataFrame(gap_data)
-    gap_df_pos = gap_df[gap_df['Max Difference (%)'] > 0].nlargest(5, 'Max Difference (%)')
-    gap_df_neg = gap_df[gap_df['Max Difference (%)'] < 0].nsmallest(5, 'Max Difference (%)')
+    gap_df_pos = gap_df[gap_df['Max Difference (%)'] > 0].nlargest(10, 'Max Difference (%)')
+    gap_df_neg = gap_df[gap_df['Max Difference (%)'] < 0].nsmallest(10, 'Max Difference (%)')
     gap_df = pd.concat([gap_df_pos, gap_df_neg])
     
     plt.figure(figsize=(12, 6))
     sns.barplot(data=gap_df, x="Max Difference (%)", y="Issue", hue="Subgroup", dodge=True, palette="coolwarm")
+    plt.axvline(0, color='black', linestyle='--', linewidth=1)
+    plt.grid(True, linestyle='--', alpha=0.6)
     plt.xlabel("Max Percentage Point Difference")
     plt.ylabel("Issue")
     plt.title("Top 10 Biggest Public Opinion Gaps Across Demographics")
     plt.legend(title="Subgroup", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
     plt.show()
     
     return gap_df
@@ -119,5 +124,5 @@ def find_biggest_gaps():
 # plot_demographic_differences("Gender")
 
 # Find and display the biggest gaps
-#gap_results = find_biggest_gaps()
-print(gap_results.head(10))
+gap_results = find_biggest_gaps()
+print(gap_results.head(20))
