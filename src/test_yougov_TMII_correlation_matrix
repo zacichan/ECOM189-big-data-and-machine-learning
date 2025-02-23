@@ -15,13 +15,34 @@ corr_df = df_to_plot.pivot(index="Date", columns="Issue", values="Percentage").f
 # Remove unwanted issues from the correlation matrix
 corr_df = corr_df.drop(columns=["Don't know", "None of These", "Afghanistan"], errors='ignore')
 
+# Rename issues for better fitting labels
+issue_rename_mapping = {
+    "The economy": "Econ",
+    "Health": "Health",
+    "Immigration & Asylum": "I&A",
+    "Britain leaving the EU": "Brexit",
+    "The environment": "Env",
+    "Crime": "Crime",
+    "Housing": "Housing",
+    "Education": "Edu",
+    "Welfare benefits": "WB",
+    "Pensions": "Pensions"
+}
+corr_df = corr_df.rename(columns=issue_rename_mapping)
+
+
 # Select the top N issues based on their average percentage over time
 top_n_issues = corr_df.mean().nlargest(num_top_issues).index
 corr_matrix = corr_df[top_n_issues].corr()
 
 # Plot the correlation matrix
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(14, 6))
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
 plt.title(f"Correlation Matrix of Top {num_top_issues} Issues")
+
+# Add the mapping box to the right of the chart
+mapping_text = "Abbreviations\n" + "\n".join([f"{abbr}: {full}" for abbr, full in issue_rename_mapping.items()])
+plt.text(len(top_n_issues) + 2, 0, mapping_text, fontsize=10, va='top', ha='left', bbox=dict(facecolor='white', alpha=0.5), linespacing=2, fontweight='bold')
+
 plt.tight_layout()
 plt.show()
